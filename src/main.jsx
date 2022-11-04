@@ -19,23 +19,42 @@ import { rankItem, compareItems } from "@tanstack/match-sorter-utils";
 
 import { makeData } from "./makeData";
 
-const fuzzyFilter = (row, columnId, value, addMeta) => {
-  // Rank the item
-  const itemRank = rankItem(row.getValue(columnId), value);
+function isSubset(a, b) {
+  let newA = [];
+  let newB = [];
+  for (let i = 0; i < a.length; i++) {
+    if (typeof a[i] === "string") {
+      newA.push(a[i].toLowerCase());
+    } else if (typeof a[i] === "number") {
+      newA.push(a[i].toString().toLowerCase());
+    }
+  }
+  for (let i = 0; i < b.length; i++) {
+    newB.push(b[i].toLowerCase());
+  }
+  if (newB.every((element) => newA.includes(element))) {
+    return true;
+  }
+  return false;
+}
 
-  // Store the itemRank info
+const fuzzyFilter = (row, columnId, value, addMeta) => {
+  const itemRank = rankItem(row.getValue(columnId), value);
+  let searchValue = value.trim().split(" ");
+  let obj = row.original;
+  let searchArray = Object.values(obj);
+
+  let result = isSubset(searchArray, searchValue);
+
   addMeta({
     itemRank,
   });
-
-  // Return if the item should be filtered in/out
-  return itemRank.passed;
+  return result;
 };
 
 const fuzzySort = (rowA, rowB, columnId) => {
   let dir = 0;
 
-  // Only sort by rank if the column has ranking information
   if (rowA.columnFiltersMeta[columnId]) {
     dir = compareItems(
       rowA.columnFiltersMeta[columnId]?.itemRank,
@@ -43,7 +62,6 @@ const fuzzySort = (rowA, rowB, columnId) => {
     );
   }
 
-  // Provide an alphanumeric fallback for when the item ranks are equal
   return dir === 0 ? sortingFns.alphanumeric(rowA, rowB, columnId) : dir;
 };
 
@@ -117,8 +135,8 @@ function App() {
     []
   );
 
-  const [data, setData] = React.useState(() => makeData(50000));
-  const refreshData = () => setData((old) => makeData(50000));
+  const [data, setData] = React.useState(makeData(500));
+  const refreshData = () => setData((old) => makeData(500));
 
   const table = useReactTable({
     data,
